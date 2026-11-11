@@ -31,18 +31,61 @@ class CaseInsensitiveUniquenessTests(TestCase):
                         email=variant, display_name="Impostor", password=PASSWORD
                     )
 
-                self.assertIn("user_email_ci_unique", str(caught.exception))
+                # The name, read the way a view should read it: the driver
+                # hands it over structurally, so callers never have to
+                # substring-match an error message to tell which rule fired.
+                self.assertEqual(
+                    caught.exception.__cause__.diag.constraint_name, "user_email_ci_unique"
+                )
 
         self.assertEqual(User.objects.count(), 1)
 
     def test_saving_the_model_directly_cannot_bypass_the_constraint(self):
-        # No manager, no normalization, no pre-flight lookup: whatever the
-        # application forgets to check, the index still holds.
+        # No manager, no pre-flight lookup: whatever the application forgets
+        # to check, the index still holds.
         impostor = User(email="ADA@Example.com", display_name="Impostor")
         impostor.set_password(PASSWORD)
 
         with self.assertRaises(IntegrityError), transaction.atomic():
             impostor.save()
+
+    def test_surrounding_whitespace_cannot_open_a_second_account(self):
+        # The index lowers but does not trim, so whitespace is the manager's
+        # job -- and the manager is bypassable. save() has to normalize too,
+        # or " ada@example.com" is a second account for the same person.
+        for variant in (
+            " ada@example.com",
+            "ada@example.com ",
+            "\tADA@example.com",
+            "ada@example.com\n",
+        ):
+            with self.subTest(email=variant):
+                impostor = User(email=variant, display_name="Impostor")
+                impostor.set_password(PASSWORD)
+
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    impostor.save()
+
+        self.assertEqual(User.objects.count(), 1)
+
+    def test_a_null_address_is_still_rejected_rather_than_stored_as_empty(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User(email=None, display_name="Nobody").save()
+
+    def test_the_unique_index_exists_in_the_database(self):
+        # auth.E003/W004 are silenced, and the check reports identically with
+        # the constraint deleted -- so the index itself is pinned here rather
+        # than only its behaviour.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT indexdef FROM pg_indexes WHERE tablename = %s AND indexname = %s",
+                [User._meta.db_table, "user_email_ci_unique"],
+            )
+            row = cursor.fetchone()
+
+        self.assertIsNotNone(row, "user_email_ci_unique is missing from the database")
+        self.assertIn("UNIQUE", row[0])
+        self.assertIn("lower", row[0].lower())
 
     def test_different_addresses_are_still_allowed(self):
         other = User.objects.create_user(

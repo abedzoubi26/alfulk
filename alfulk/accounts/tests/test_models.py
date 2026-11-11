@@ -69,15 +69,23 @@ class PasswordStorageTests(TestCase):
         self.assertTrue(user.check_password(PASSWORD))
         self.assertFalse(user.check_password("something else entirely"))
 
-    def test_no_plaintext_password_reaches_the_database(self):
+    def test_the_column_holds_an_argon2id_hash_and_no_plaintext(self):
+        # Read the column rather than the instance: "plaintext absent" alone
+        # would still pass for a reversible encoding of the password, so the
+        # value that is actually on disk has to name the hasher too.
         User.objects.create_user(email="ada@example.com", display_name="Ada", password=PASSWORD)
 
         with connection.cursor() as cursor:
             cursor.execute(f"SELECT * FROM {User._meta.db_table}")  # noqa: S608
+            columns = [column.name for column in cursor.description]
             rows = cursor.fetchall()
 
         stored = " ".join(str(value) for row in rows for value in row)
         self.assertNotIn(PASSWORD, stored)
+
+        passwords = [row[columns.index("password")] for row in rows]
+        self.assertEqual(len(passwords), 1)
+        self.assertTrue(passwords[0].startswith("argon2$argon2id$"), passwords[0])
 
     def test_an_omitted_password_is_unusable_rather_than_empty(self):
         user = User.objects.create_user(email="ada@example.com", display_name="Ada")
@@ -136,6 +144,14 @@ class LookupByEmailTests(TestCase):
     def test_get_by_natural_key_still_distinguishes_different_addresses(self):
         with self.assertRaises(User.DoesNotExist):
             User.objects.get_by_natural_key("grace@example.com")
+
+    def test_get_by_natural_key_reports_a_non_string_as_a_miss(self):
+        # Stock Django coerces through the field and raises DoesNotExist, which
+        # ModelBackend catches; an AttributeError here would reach the caller
+        # as a 500 instead.
+        for not_an_address in (12345, object()):
+            with self.subTest(username=not_an_address), self.assertRaises(User.DoesNotExist):
+                User.objects.get_by_natural_key(not_an_address)
 
     def test_authenticate_accepts_a_case_variant_of_the_email(self):
         self.assertEqual(authenticate(username="  ADA@example.COM ", password=PASSWORD), self.user)

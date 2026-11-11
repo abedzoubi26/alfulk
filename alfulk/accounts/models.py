@@ -32,8 +32,13 @@ class UserManager(BaseUserManager):
         the column the uniqueness constraint reads. Letter case in the local
         part is preserved -- the address is stored as entered and the
         constraint, not the column, decides who is who.
+
+        ``str()`` rather than a bare ``.strip()``: a non-string reaching here
+        through ``authenticate()`` would otherwise raise ``AttributeError``,
+        which ``ModelBackend`` does not catch, where stock Django coerces
+        through the field and returns ``DoesNotExist``.
         """
-        return super().normalize_email((email or "").strip())
+        return super().normalize_email(str(email or "").strip())
 
     def get_by_natural_key(self, username):
         """Look an account up by email, ignoring letter case and surrounding space.
@@ -86,6 +91,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     ``last_login`` and ``password`` come from ``AbstractBaseUser``; the
     permission flags and relations from ``PermissionsMixin``.
+
+    Inserting a user is how a duplicate address is detected, because the
+    constraint below is the only layer that can decide it. Two requirements
+    come with that, and both are easy to miss:
+
+    * Wrap the insert in its own ``transaction.atomic()`` savepoint.
+      ``ATOMIC_REQUESTS`` is on, so without a savepoint the failed insert
+      poisons the request-wide transaction: the ``except`` block catches the
+      ``IntegrityError``, then the next query -- re-rendering the form, or
+      merely writing the session -- raises ``TransactionManagementError`` and
+      the duplicate sign-up becomes a 500.
+    * Discriminate on which constraint fired rather than catching
+      ``IntegrityError`` bare, or a future foreign-key violation will tell
+      someone their email address is taken::
+
+          except IntegrityError as exc:
+              diag = getattr(exc.__cause__, "diag", None)
+              if diag and diag.constraint_name == "user_email_ci_unique":
+                  ...  # the address already has an account
+              raise
     """
 
     USERNAME_FIELD = "email"
@@ -114,6 +139,21 @@ class User(AbstractBaseUser, PermissionsMixin):
             # (AC-SU-4); callers handle IntegrityError as the duplicate case.
             models.UniqueConstraint(Lower("email"), name="user_email_ci_unique"),
         ]
+
+    def save(self, *args, **kwargs):
+        """Normalize the address on every write, not just the manager's.
+
+        The constraint lowers but cannot trim, and widening it is the wrong
+        fix: Postgres ``btrim`` strips spaces only, so ``Lower(Trim(email))``
+        would still disagree with Python's ``.strip()`` about a tab or a
+        newline -- two definitions of sameness again, which is what
+        ``get_by_natural_key`` exists to avoid. Normalizing on write keeps one
+        definition and leaves the index simple, so a caller that bypasses the
+        manager cannot open ``" ada@example.com"`` as a second account.
+        """
+        if self.email is not None:
+            self.email = UserManager.normalize_email(self.email)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email

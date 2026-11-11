@@ -103,9 +103,19 @@ AUTH_USER_MODEL = "accounts.User"
 # case-sensitive index would, plus the case variants. Django's check cannot
 # read an expression constraint, so silence it rather than satisfy it with a
 # second, redundant index -- that index would also tell the next reader that
-# letter case is part of identity, which is the thing we are ruling out. The
-# constraint is covered by alfulk/accounts/tests/test_email_uniqueness.py.
-SILENCED_SYSTEM_CHECKS = ["auth.E003"]
+# letter case is part of identity, which is the thing we are ruling out.
+#
+# auth.W004 is the same check wearing a different id: Django emits W004 in
+# place of E003 as soon as AUTHENTICATION_BACKENDS differs from the default,
+# so both have to be listed or the first custom backend (E5's timing
+# equalisation) turns `check --deploy --fail-level WARNING` red on a PR that
+# has nothing to do with the user model.
+#
+# Silencing costs the whole signal rather than a false positive -- with the
+# constraint deleted from Meta the check output is byte-identical -- so the
+# constraint and the index it builds are pinned by
+# alfulk/accounts/tests/test_email_uniqueness.py instead.
+SILENCED_SYSTEM_CHECKS = ["auth.E003", "auth.W004"]
 
 # --- Passwords --------------------------------------------------------------
 
