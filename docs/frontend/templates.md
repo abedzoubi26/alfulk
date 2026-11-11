@@ -67,6 +67,19 @@ These hold for every screen built on these partials. They are asserted in
   `aria-invalid="true"` and an `aria-describedby` naming `<auto_id>_helptext`
   and `<auto_id>_error`; the partials emit elements with exactly those ids. If
   you render a control by hand, you take on that wiring yourself.
+- **Help text is escaped.** `partials/field.html` renders `field.help_text`
+  without `|safe`, deliberately unlike Django's own field template. Help text
+  on these screens carries user-controlled values -- an email address, a
+  display name -- so escaping has to be what you get by not thinking about it.
+  A field that needs markup opts in where it is defined, with `format_html()`
+  or `mark_safe()`:
+
+  ```python
+  help_text = format_html('See the <a href="{}">recovery guide</a>.', url)
+  ```
+
+  Never by reaching for `|safe` in the template: that re-opens it for every
+  field, including the ones built from user input.
 - **Error state is never carried by colour alone.** Each message is prefixed
   with a visually hidden "Error:", the control is `aria-invalid`, and the red
   border is the third signal rather than the only one.

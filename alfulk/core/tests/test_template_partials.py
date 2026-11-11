@@ -7,8 +7,10 @@ layer is required to do.
 """
 
 from django import forms
+from django.conf import settings
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
+from django.utils.html import format_html
 
 
 class SampleForm(forms.Form):
@@ -33,7 +35,7 @@ def valid_data() -> dict[str, str]:
     }
 
 
-def render_field(form: SampleForm, name: str) -> str:
+def render_field(form: forms.Form, name: str) -> str:
     return render_to_string("partials/field.html", {"field": form[name]})
 
 
@@ -120,6 +122,60 @@ class FieldPartialTests(SimpleTestCase):
 
         self.assertIn('type="hidden"', html)
         self.assertNotIn('class="field', html)
+
+
+INJECTION = '<img src=x onerror="alert(1)">'
+
+
+class HelpTextForm(forms.Form):
+    """Help text in each of the three shapes `partials/field.html` renders.
+
+    The values stand in for help text built from something a user controls --
+    an email address, a display name -- which is what most of these screens
+    want to show.
+    """
+
+    plain = forms.CharField(label="Plain", help_text=INJECTION)
+    checkbox = forms.BooleanField(label="Checkbox", help_text=INJECTION)
+    group = forms.ChoiceField(
+        label="Group",
+        choices=[("a", "A"), ("b", "B")],
+        widget=forms.RadioSelect,
+        help_text=INJECTION,
+    )
+    marked_up = forms.CharField(
+        label="Marked up",
+        help_text=format_html('Read the <a href="{}">guide</a>.', "/help"),
+    )
+
+
+class HelpTextEscapingTests(SimpleTestCase):
+    """Help text is escaped, so no field can become an HTML injection sink.
+
+    This is a deliberate deviation from Django's own `django/forms/field.html`,
+    which applies `|safe`. Every screen in increment 1 inherits this partial,
+    and there is no CSP yet, so the default has to be the safe one.
+    """
+
+    def test_help_text_is_escaped_in_every_field_shape(self):
+        for name in ("plain", "checkbox", "group"):
+            with self.subTest(field=name):
+                html = render_field(HelpTextForm(), name)
+
+                self.assertNotIn(INJECTION, html)
+                self.assertNotIn("<img", html)
+                self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;", html)
+
+    def test_help_text_that_is_explicitly_marked_safe_still_renders_as_markup(self):
+        html = render_field(HelpTextForm(), "marked_up")
+
+        self.assertIn('Read the <a href="/help">guide</a>.', html)
+
+    def test_the_partial_pipes_help_text_through_no_filter(self):
+        """A regression guard, for a shape added later that these tests miss."""
+        source = (settings.BASE_DIR / "templates" / "partials" / "field.html").read_text()
+
+        self.assertNotRegex(source, r"field\.help_text\s*\|")
 
 
 class ErrorSummaryTests(SimpleTestCase):

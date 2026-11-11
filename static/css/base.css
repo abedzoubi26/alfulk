@@ -4,8 +4,11 @@
  * framework (ADR-0001). Keep it small enough to read in one sitting.
  *
  * Two rules that are not style preferences and should survive any redesign:
- *   1. Focus is never removed. `outline: none` without a replacement indicator
- *      makes the product unusable by keyboard, which is a defect, not a look.
+ *   1. Focus is never removed from anything a keyboard can tab to. `outline:
+ *      none` without a replacement indicator makes the product unusable by
+ *      keyboard, which is a defect, not a look. The single exception below is
+ *      `.site-main`, which carries `tabindex="-1"`: it is a scroll target the
+ *      skip link moves focus to, never a stop on the tab sequence.
  *   2. Error state is never carried by colour alone. Every red thing here is
  *      accompanied by text.
  */
@@ -73,8 +76,12 @@ a {
   outline: none;
 }
 
-/* The main landmark and the error summary are focused programmatically rather
- * than tabbed to, so they get a quieter indicator than a control would. */
+/* The main landmark takes focus only from the skip link, and outlining the
+ * whole page body says nothing a user can act on -- the content moving into
+ * view is the feedback. It carries `tabindex="-1"`, so it is never a tab stop
+ * and this is not a focus indicator anyone loses. The error summary, which is
+ * also focused programmatically, does keep its outline: there the ring marks
+ * a specific region the user is meant to read. */
 .site-main:focus,
 .site-main:focus-visible {
   outline: none;

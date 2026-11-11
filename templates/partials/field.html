@@ -8,6 +8,14 @@ already adds `aria-invalid="true"` when the field has errors and an
 template's job is to emit elements carrying exactly those ids. Reimplementing
 the attributes here would mean two sources of truth for the same association.
 
+Help text is escaped, deliberately unlike Django's own field template, which
+applies `|safe`. This partial is the baseline every screen inherits, and the
+help text those screens want carries user-controlled values -- an email
+address, a display name. Escaping by default means a field cannot become an
+HTML injection sink by accident. A field that genuinely needs markup opts in
+at the point it is defined, with `format_html()` or `mark_safe()`, where the
+decision is reviewable.
+
 Three shapes:
   - a fieldset, for widgets that render several controls (radios, multiple
     checkboxes), where a single <label> cannot describe the group;
@@ -27,7 +35,7 @@ Three shapes:
           <legend class="field__legend">{{ field.label }}{% include "partials/required_marker.html" %}</legend>
         {% endif %}
         {% if field.help_text %}
-          <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</p>
+          <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>
         {% endif %}
         {% include "partials/field_errors.html" %}
         {{ field }}
@@ -39,14 +47,14 @@ Three shapes:
         <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}{% include "partials/required_marker.html" %}</label>
       </div>
       {% if field.help_text %}
-        <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</p>
+        <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>
       {% endif %}
     {% else %}
       {% if field.label %}
         <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}{% include "partials/required_marker.html" %}</label>
       {% endif %}
       {% if field.help_text %}
-        <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</p>
+        <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>
       {% endif %}
       {% include "partials/field_errors.html" %}
       {{ field }}
