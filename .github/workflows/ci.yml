@@ -101,6 +101,9 @@ jobs:
       RECOVERY_CODE_HMAC_KEY: ci-only-placeholder-recovery-key
       DATABASE_URL: postgres://alfulk:alfulk@localhost:5432/alfulk
       ALLOWED_HOSTS: example.invalid
+      # Required by the production settings module, and checked by
+      # alfulk.E001 for not being Django's default `admin/` (ADR-0006).
+      ADMIN_URL: "ops-ci-placeholder/"
       # This job models *production*, where HSTS is fully enabled. The settings
       # default both to False so that preview and staging -- which share the
       # same settings module -- cannot assert `preload` for the registrable

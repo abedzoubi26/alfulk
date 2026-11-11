@@ -144,6 +144,31 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 X_FRAME_OPTIONS = "DENY"
 
+# --- Django admin -----------------------------------------------------------
+
+
+def normalise_admin_url(value: str) -> str:
+    """Canonicalise an admin mount prefix: no leading slash, one trailing one.
+
+    An empty value means the admin is not routed in this environment at all.
+    """
+    value = value.strip().strip("/")
+    return f"{value}/" if value else ""
+
+
+# Where `django.contrib.admin` is mounted, or "" to not route it at all.
+#
+# An environment variable rather than a constant because ADR-0003 requires
+# environments to differ only by configuration, and because the admin of an
+# identity platform should not sit at the one URL every scanner tries first.
+# That last part is obscurity, not security -- it thins drive-by traffic
+# against the login form and nothing more -- so it stacks with authentication
+# rather than standing in for it. See ADR-0006.
+#
+# `production` overrides this with a value that has no default, so a deployed
+# environment has to choose. The default here is only for developer machines.
+ADMIN_URL = normalise_admin_url(env("ADMIN_URL", default="admin/"))
+
 # --- Internationalisation ---------------------------------------------------
 
 LANGUAGE_CODE = "en-us"

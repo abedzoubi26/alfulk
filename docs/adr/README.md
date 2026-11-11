@@ -13,6 +13,7 @@ it, the decision itself, and the consequences we accept by taking it.
 | [0003](0003-environments.md) | Environments: preview, staging, production | Accepted |
 | [0004](0004-ci-cd-and-branching.md) | CI/CD, branching and review gates | Accepted |
 | [0005](0005-credential-storage-and-client-ip.md) | Credential storage at rest, and resolving the client IP | Accepted |
+| [0006](0006-django-admin-exposure.md) | Where the Django admin lives, and whether production serves it | Proposed |
 
 ## Status values
 
