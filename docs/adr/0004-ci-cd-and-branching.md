@@ -48,10 +48,15 @@ All of these must pass before merge, enforced as required status checks:
 | `manage.py test` against real PostgreSQL 16 | Behaviour. Run against PostgreSQL, not SQLite, so database-specific behaviour is actually exercised |
 | `coverage report --fail-under` | Untested new code. The floor starts modest and ratchets upward; it is never lowered to make a pull request pass |
 | `manage.py check --deploy` with production settings | **Insecure production posture** — `DEBUG=True`, missing HSTS, non-secure cookies. Run at `--fail-level WARNING` |
-| `pip-audit` | Known CVEs in dependencies |
+| `pip-audit` | Known CVEs in dependencies, read from the installed — and therefore locked — environment |
+| `uv lock --check` | **A manifest change without a matching lockfile update.** Every install job also passes `--locked`, so a stale lock cannot be silently ignored |
 
 `check --deploy` is in the list because it is the one check that tests the
 configuration we actually ship rather than the configuration we test under.
+
+Every job installs with `uv sync --locked`, so all of the above run against
+the exact versions recorded in `uv.lock` rather than against whatever the
+declared ranges resolve to that day.
 
 ### Branch protection on `main`
 

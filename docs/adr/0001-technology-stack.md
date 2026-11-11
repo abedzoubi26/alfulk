@@ -119,10 +119,13 @@ for "Django as an OIDC provider" is real, and the alternatives' is not.
   what we actually use.
 - **`coverage.py`** with a floor enforced in CI, ratcheted upward over time
   rather than set aspirationally high on day one.
-- **Dependencies declared in `pyproject.toml`**, installed with `pip`.
-  Reproducible builds need a lockfile; generating one requires a Python
-  environment, so it is tracked as a separate foundation task rather than
-  guessed at here.
+- **Dependencies declared in `pyproject.toml`**, resolved and installed with
+  **`uv`**. `uv.lock` pins the full transitive graph to exact versions with
+  hashes and is committed; CI, local development and the container image all
+  install with `--locked`, which fails rather than re-resolving. uv also
+  supplies the interpreter pinned in `.python-version`, so a machine needs no
+  pre-existing Python. See [ADR-0004](0004-ci-cd-and-branching.md) for the
+  enforcement and the README for the add/upgrade workflow.
 - **Docker Compose** for local development, providing PostgreSQL so no
   engineer has to install it. The application itself runs on the host during
   development.
@@ -174,5 +177,11 @@ for "Django as an OIDC provider" is real, and the alternatives' is not.
 - Losing `TOTP_SECRET_ENCRYPTION_KEYS` locks every user out of their second
   factor with no recovery path short of recovery codes. It belongs in the
   backup and key-escrow procedure, not only in the deploy environment.
-- No lockfile on day one means CI resolves dependency versions within the
-  declared ranges. This is a known gap, closed by the lockfile foundation task.
+- Dependency versions are pinned in `uv.lock`, so a green CI run stays
+  reproducible and we can state exactly which version of `cryptography` or
+  `argon2-cffi` is in production. The cost is that upgrades are now explicit:
+  a new release is picked up only when someone runs `uv lock --upgrade`, so
+  the dependency audit has to be acted on rather than assumed.
+- uv becomes a required tool for contributors and for the container image.
+  The version is pinned in CI so the resolver itself is part of the
+  reproducible set.

@@ -31,29 +31,71 @@ Argon2id password hashing, TOTP two-factor. See
 
 ## Local development
 
-Requires Python 3.12+ and Docker (for PostgreSQL).
+Requires [uv](https://docs.astral.sh/uv/) and Docker (for PostgreSQL). uv
+fetches the Python interpreter itself — the version in `.python-version` — so
+a separate Python install is not needed.
 
 ```bash
 cp .env.example .env            # then edit SECRET_KEY and RECOVERY_CODE_HMAC_KEY
 docker compose up -d db         # PostgreSQL on localhost:5432
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-python manage.py migrate
-python manage.py runserver
+uv sync --extra dev --locked    # creates .venv from uv.lock, exactly
+uv run python manage.py migrate
+uv run python manage.py runserver
 ```
 
 The app is then at http://localhost:8000 and its health endpoint at
 http://localhost:8000/healthz.
+
+`--locked` is the point: it installs what `uv.lock` records and fails rather
+than re-resolving, so your machine, CI and the deployed image run the same
+versions down to the transitive graph. Drop it only when you are deliberately
+changing dependencies.
 
 ### Checks
 
 Run these before opening a pull request; CI runs the same set.
 
 ```bash
-ruff check .
-ruff format --check .
-python manage.py makemigrations --check --dry-run
-python manage.py test
+uv run ruff check .
+uv run ruff format --check .
+uv run python manage.py makemigrations --check --dry-run
+uv run python manage.py test
+uv run pip-audit --skip-editable
+```
+
+## Dependencies
+
+`pyproject.toml` declares the version ranges we accept. `uv.lock` pins the
+full transitive graph to exact versions with SHA-256 hashes, and is
+committed. The two are reviewed together: a change to one without the other
+fails the `Lockfile up to date` job in CI.
+
+```bash
+# Add or remove a dependency
+uv add 'some-package>=1.2'          # --optional dev for a dev-only tool
+uv remove some-package
+
+# Upgrade one package within the range pyproject.toml already allows
+uv lock --upgrade-package django
+
+# Upgrade everything within the declared ranges
+uv lock --upgrade
+
+# Widen or change a range: edit pyproject.toml, then
+uv lock
+```
+
+Each of these rewrites `uv.lock`. Commit the manifest and the lock in the
+same commit, then run `uv sync --extra dev --locked` to bring your
+environment in line and run the checks above — `pip-audit` reads the
+installed environment, so it reports on the locked versions rather than on
+whatever the ranges happen to permit today.
+
+If a consumer needs a plain pip-installable artefact, export one from the
+lock rather than hand-maintaining a second list:
+
+```bash
+uv export --format requirements-txt --no-emit-project --extra dev
 ```
 
 ## Contributing
