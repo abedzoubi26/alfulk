@@ -1,0 +1,82 @@
+[project]
+name = "alfulk"
+version = "0.1.0"
+description = "A self-hosted replacement for Google's account platform"
+requires-python = ">=3.12"
+dependencies = [
+    "Django>=5.2,<5.3",
+    "psycopg[binary]>=3.2,<4",
+    "django-environ>=0.11,<1",
+    "argon2-cffi>=23.1",
+    "cryptography>=43.0",
+    "pyotp>=2.9",
+    "qrcode[pil]>=7.4",
+    "gunicorn>=22.0",
+    "whitenoise>=6.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "coverage>=7.6",
+    "pip-audit>=2.7",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["alfulk*", "config*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "DJ",   # flake8-django
+    "S",    # flake8-bandit
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "S101",  # assert is how Django's test runner expresses expectations
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Hardcoded credentials are the point in tests and in local-only settings
+# defaults; real environments supply these through the environment.
+"*/tests/*" = ["S105", "S106"]
+"config/settings/*" = ["S105", "S106"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["alfulk", "config"]
+
+[tool.coverage.run]
+source = ["alfulk", "config"]
+branch = true
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "config/wsgi.py",
+    "config/asgi.py",
+    "config/settings/*",
+    "manage.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

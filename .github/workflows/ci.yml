@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Superseded runs on the same branch are pointless; cancel them. `main` is
+# never cancelled, so every merged commit keeps a complete CI record.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: ruff check
+        run: ruff check --output-format=github .
+
+      - name: ruff format
+        run: ruff format --check --diff .
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    services:
+      # A real PostgreSQL, not SQLite: constraint, transaction and locking
+      # behaviour differ in exactly the places identity logic relies on.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: alfulk
+          POSTGRES_PASSWORD: alfulk
+          POSTGRES_DB: alfulk_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U alfulk"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgres://alfulk:alfulk@localhost:5432/alfulk_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Check for missing migrations
+        # Catches a model changed without a migration, which is the most
+        # common way a Django branch breaks main after merge.
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: coverage run manage.py test --verbosity 2
+
+      - name: Coverage
+        # A ratchet, not an aspiration: raise this as the suite grows, never
+        # lower it to make a pull request pass.
+        run: coverage report --fail-under=80
+
+  deploy-check:
+    name: Production settings check
+    runs-on: ubuntu-latest
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      # Throwaway values of realistic shape. This job never touches a
+      # database or a network; it only inspects the configuration we ship.
+      SECRET_KEY: ci-only-placeholder-key-of-sufficient-length-to-satisfy-checks-0123456789
+      RECOVERY_CODE_HMAC_KEY: ci-only-placeholder-recovery-key
+      DATABASE_URL: postgres://alfulk:alfulk@localhost:5432/alfulk
+      ALLOWED_HOSTS: example.invalid
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: django check --deploy
+        # The only check that tests the configuration we actually ship rather
+        # than the configuration the tests run under.
+        run: python manage.py check --deploy --fail-level WARNING
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: pip-audit
+        run: pip-audit --progress-spinner=off
