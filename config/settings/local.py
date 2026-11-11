@@ -7,7 +7,7 @@ import os
 os.environ.setdefault("SECRET_KEY", "django-insecure-local-development-only")
 os.environ.setdefault("RECOVERY_CODE_HMAC_KEY", "local-development-only")
 
-from .base import *  # noqa: E402,F403
+from .base import *  # noqa: F403
 
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]

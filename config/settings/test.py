@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("SECRET_KEY", "django-insecure-test-only")
 os.environ.setdefault("RECOVERY_CODE_HMAC_KEY", "test-only-recovery-key")
 
-from .base import *  # noqa: E402,F403
+from .base import *  # noqa: F403
 
 DEBUG = False
 ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
@@ -25,3 +25,8 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+# WhiteNoise serves nothing under test and warns on every request that
+# STATIC_ROOT has not been collected. Dropping it keeps the suite's output
+# free of a warning that would train us to ignore warnings.
+MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405
