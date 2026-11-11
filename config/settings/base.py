@@ -162,6 +162,16 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
+# --- User interface ---------------------------------------------------------
+
+# The template reference page at /_ui/forms, which renders the shared form
+# partials in every state so the accessibility baseline can be checked in a
+# browser. Off by default: it is a development aid, not product surface, and an
+# identity platform should not serve pages nobody needs. Turned on for
+# developer machines and for preview environments, where reviewers click
+# through a change before approving it (ADR-0003).
+UI_REFERENCE_ENABLED = env.bool("UI_REFERENCE_ENABLED", default=False)
+
 # --- Email ------------------------------------------------------------------
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

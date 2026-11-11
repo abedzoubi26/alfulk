@@ -28,6 +28,8 @@ Argon2id password hashing, TOTP two-factor. See
 
 - [Architecture decisions](docs/adr/) — the stack, hosting, environments and CI/CD
 - [Product plan and increment briefs](docs/product/) — owned by the Product Manager
+- [Templates, forms and the accessibility baseline](docs/frontend/templates.md) — the
+  shared layer every screen is built on
 
 ## Local development
 
@@ -42,8 +44,9 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-The app is then at http://localhost:8000 and its health endpoint at
-http://localhost:8000/healthz.
+The app is then at http://localhost:8000, its health endpoint at
+http://localhost:8000/healthz, and the template reference page — the shared
+form partials in every state — at http://localhost:8000/_ui/forms.
 
 ### Checks
 

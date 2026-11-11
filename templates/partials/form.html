@@ -1,0 +1,33 @@
+{% comment %}
+A complete <form> element: method, CSRF token, error summary, fields and a
+submit button.
+
+Expects `form`. Optional:
+  action        form action; omitted means "post back to this URL"
+  method        defaults to "post"
+  form_id       id on the <form>, and the prefix for the error summary's ids
+  form_class    extra class on the <form>
+  submit_label  defaults to "Save"
+
+Include it *without* `only`: the CSRF token comes from the template context.
+
+`novalidate` is deliberate. Native browser validation stops at the first
+invalid control, which contradicts the brief's requirement that every error on
+a submission is shown at once (AC-SU-5), and its bubbles are not styleable or
+consistently announced. The controls still carry `required`, `type="email"`
+and `maxlength` -- they describe the field to assistive technology -- but the
+server is the only thing that decides whether a submission is valid.
+{% endcomment %}
+{% with form_method=method|default:"post"|lower %}
+  <form class="form{% if form_class %} {{ form_class }}{% endif %}"
+        method="{{ form_method }}"
+        {% if action %}action="{{ action }}"{% endif %}
+        {% if form_id %}id="{{ form_id }}"{% endif %}
+        novalidate>
+    {% if form_method == "post" %}{% csrf_token %}{% endif %}
+    {% include "partials/form_body.html" %}
+    <div class="form-actions">
+      <button type="submit" class="button">{{ submit_label|default:"Save" }}</button>
+    </div>
+  </form>
+{% endwith %}

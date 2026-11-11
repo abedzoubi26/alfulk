@@ -5,22 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Alfulk{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    {% block extra_head %}{% endblock %}
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
+    {# The first focusable element on every page, so a keyboard user can jump the header. #}
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
     <header class="site-header">
       <a class="brand" href="{% url 'core:home' %}">Alfulk</a>
+      {% block site_nav %}{% endblock %}
     </header>
 
-    {% if messages %}
-      <ul class="messages">
-        {% for message in messages %}
-          <li class="message message--{{ message.tags }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-
-    <main class="site-main">
+    {% comment %}
+      tabindex="-1" so the skip link moves focus here, not only the viewport.
+      Messages live inside the landmark so the skip link does not skip past them.
+    {% endcomment %}
+    <main class="site-main" id="main-content" tabindex="-1">
+      {% include "partials/messages.html" %}
       {% block content %}{% endblock %}
     </main>
+
+    <script src="{% static 'js/error-summary.js' %}" defer></script>
+    {% block scripts %}{% endblock %}
   </body>
 </html>

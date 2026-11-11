@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Template reference &mdash; Alfulk{% endblock %}
+
+{% block content %}
+  <h1>Template reference</h1>
+  <p class="muted">
+    The shared form partials in each state they can be in. Not product surface:
+    this page is served only where <code>UI_REFERENCE_ENABLED</code> is set, which
+    is developer machines and preview environments.
+  </p>
+
+  <nav class="reference-nav" aria-label="Reference states">
+    <ul>
+      <li><a href="{% url 'core:ui_reference' %}">Empty form</a></li>
+      <li>
+        <a href="{% url 'core:ui_reference' %}?state=errors">
+          Field errors and a form-level error
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <section class="reference-section" aria-labelledby="form-heading">
+    <h2 id="form-heading">Form</h2>
+    <p>
+      Submitting validates on the server and renders whatever comes back.
+      Nothing is saved and no account is touched.
+    </p>
+    {% include "partials/form.html" with form=form form_id="reference" submit_label="Submit" %}
+  </section>
+
+  <section class="reference-section" aria-labelledby="keyboard-heading">
+    <h2 id="keyboard-heading">Checking this page by keyboard</h2>
+    <ol>
+      <li>
+        Load the page and press <kbd>Tab</kbd> once. The first stop is
+        &ldquo;Skip to main content&rdquo;, and it is visible.
+      </li>
+      <li>
+        Keep pressing <kbd>Tab</kbd>. Every control is reachable in reading
+        order and every stop has a visible focus outline.
+      </li>
+      <li>
+        Submit the empty form with <kbd>Enter</kbd>. Focus lands on the error
+        summary, each entry names its field, and following an entry moves focus
+        to that control.
+      </li>
+      <li>
+        Each control that failed is marked <code>aria-invalid="true"</code> and
+        describes itself with its own error text, not only a red border.
+      </li>
+    </ol>
+  </section>
+{% endblock %}

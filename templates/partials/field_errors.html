@@ -1,0 +1,17 @@
+{% comment %}
+The error list for one bound field. Expects `field`.
+
+The id is `<auto_id>_error` because that is the id Django 5 puts into the
+widget's `aria-describedby` (see BoundField.aria_describedby). Changing it here
+silently breaks the association, so it is not a free choice.
+
+Each message is prefixed with a visually hidden "Error:" so the failure is
+conveyed by text and not by the red border alone.
+{% endcomment %}
+{% if field.errors %}
+  <ul class="errorlist"{% if field.auto_id %} id="{{ field.auto_id }}_error"{% endif %}>
+    {% for error in field.errors %}
+      <li class="errorlist__item"><span class="visually-hidden">Error: </span>{{ error }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}

@@ -1,0 +1,55 @@
+{% comment %}
+One bound form field: label, help text, errors and the control itself.
+Expects `field`.
+
+The accessibility wiring is deliberately left to Django 5's BoundField, which
+already adds `aria-invalid="true"` when the field has errors and an
+`aria-describedby` pointing at `<auto_id>_helptext` and `<auto_id>_error`. This
+template's job is to emit elements carrying exactly those ids. Reimplementing
+the attributes here would mean two sources of truth for the same association.
+
+Three shapes:
+  - a fieldset, for widgets that render several controls (radios, multiple
+    checkboxes), where a single <label> cannot describe the group;
+  - a single checkbox, where the label reads better after the control;
+  - everything else: label, then help, then errors, then the control, so a
+    screen reader meets the problem before the input it has to fix.
+{% endcomment %}
+{% if field.is_hidden %}{{ field }}{% else %}
+  <div class="field field--{{ field.widget_type }}{% if field.errors %} field--invalid{% endif %}">
+    {% if field.use_fieldset %}
+      {% comment %}
+        tabindex="-1" so the error summary's link to #<auto_id>_fieldset moves
+        focus to the group, the way a link to a single control would.
+      {% endcomment %}
+      <fieldset class="field__fieldset" id="{{ field.auto_id }}_fieldset" tabindex="-1"{% if field.aria_describedby %} aria-describedby="{{ field.aria_describedby }}"{% endif %}>
+        {% if field.label %}
+          <legend class="field__legend">{{ field.label }}{% include "partials/required_marker.html" %}</legend>
+        {% endif %}
+        {% if field.help_text %}
+          <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</p>
+        {% endif %}
+        {% include "partials/field_errors.html" %}
+        {{ field }}
+      </fieldset>
+    {% elif field.widget_type == "checkbox" %}
+      {% include "partials/field_errors.html" %}
+      <div class="field__checkbox">
+        {{ field }}
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}{% include "partials/required_marker.html" %}</label>
+      </div>
+      {% if field.help_text %}
+        <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</p>
+      {% endif %}
+    {% else %}
+      {% if field.label %}
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}{% include "partials/required_marker.html" %}</label>
+      {% endif %}
+      {% if field.help_text %}
+        <p class="field__help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</p>
+      {% endif %}
+      {% include "partials/field_errors.html" %}
+      {{ field }}
+    {% endif %}
+  </div>
+{% endif %}

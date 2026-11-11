@@ -1,0 +1,8 @@
+{% comment %}
+The "required" marker for a field label or legend. Expects `field`.
+
+The asterisk is decorative -- it is hidden from assistive technology and the
+word "required" is given instead, because a lone "*" is not a meaning anyone
+can rely on. The control itself also carries the HTML `required` attribute,
+which Django adds; this is the visible half of the same statement.
+{% endcomment %}{% if field.field.required %}<span class="field__required" aria-hidden="true">*</span><span class="visually-hidden"> (required)</span>{% endif %}
