@@ -23,6 +23,7 @@ jobs:
   lock:
     name: Lockfile up to date
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +42,7 @@ jobs:
   lint:
     name: Lint and format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -69,6 +71,7 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       # A real PostgreSQL, not SQLite: constraint, transaction and locking
@@ -123,6 +126,7 @@ jobs:
   deploy-check:
     name: Production settings check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     env:
       DJANGO_SETTINGS_MODULE: config.settings.production
@@ -166,6 +170,7 @@ jobs:
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -188,3 +193,68 @@ jobs:
         # actually ship, not whatever the manifest ranges allow today.
         # `--skip-editable` skips alfulk itself, which is not on PyPI.
         run: pip-audit --skip-editable --progress-spinner=off
+
+  secret-scan:
+    name: Secret scan
+    # Pull requests only. The scan compares a branch against its merge base,
+    # which is not a meaningful range for a push to `main` — and `main`'s
+    # full history was scanned clean once, during the PR #2 review.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The merge base has to be present locally for the range scan
+          # below. The repository is a few hundred kilobytes, so taking the
+          # whole history costs less than reasoning about how deep is deep
+          # enough.
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        # Not the gitleaks action: ADR-0004 requires third-party actions to
+        # be pinned to a full commit SHA, and a pinned release tarball with
+        # a verified checksum is a stronger guarantee than a pinned action —
+        # we check what we got rather than trusting what we asked for.
+        # To upgrade: bump both values together from the release's
+        # gitleaks_<version>_checksums.txt.
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+        run: |
+          set -euo pipefail
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL --retry 3 -o /tmp/gitleaks.tar.gz "$url"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan the commits this pull request adds
+        # The shas arrive as environment variables rather than `${{ }}`
+        # inside the script, so nothing from the event payload is ever
+        # expanded into shell source.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # `base.sha` is the base branch tip when the pull request was last
+          # synchronised, not necessarily an ancestor of the head. Scanning
+          # from the merge base keeps the range to this branch's own work,
+          # so an unrelated commit on the base branch cannot turn this red.
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --quiet origin "${BASE_SHA}"
+          fi
+          merge_base="$(git merge-base "${BASE_SHA}" "${HEAD_SHA}")"
+
+          echo "Scanning ${merge_base}..${HEAD_SHA}"
+
+          # Exits 1 on any finding, which fails the job. `--redact` keeps the
+          # secret itself out of the log: the log is readable by anyone who
+          # can see the repository, and a leaked credential pasted into a
+          # public build log is worse than the commit that carried it.
+          gitleaks git . \
+            --no-banner \
+            --redact \
+            --log-opts="${merge_base}..${HEAD_SHA}"

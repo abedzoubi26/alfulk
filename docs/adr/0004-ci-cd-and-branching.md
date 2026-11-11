@@ -50,6 +50,7 @@ All of these must pass before merge, enforced as required status checks:
 | `manage.py check --deploy` with production settings | **Insecure production posture** — `DEBUG=True`, missing HSTS, non-secure cookies. Run at `--fail-level WARNING` |
 | `pip-audit` | Known CVEs in dependencies, read from the installed — and therefore locked — environment |
 | `uv lock --check` | **A manifest change without a matching lockfile update.** Every install job also passes `--locked`, so a stale lock cannot be silently ignored |
+| `gitleaks` over the pull request's commits | **A credential committed to the branch.** Scans the merge base to the head rather than the whole history, so it stays fast enough to be read rather than skipped |
 
 `check --deploy` is in the list because it is the one check that tests the
 configuration we actually ship rather than the configuration we test under.
@@ -57,6 +58,22 @@ configuration we actually ship rather than the configuration we test under.
 Every job installs with `uv sync --locked`, so all of the above run against
 the exact versions recorded in `uv.lock` rather than against whatever the
 declared ranges resolve to that day.
+
+Every job also carries a `timeout-minutes`. Without one a hung step runs
+until the platform's six-hour default kills it, burning the runner minute
+budget and holding the branch in a pending state nobody can act on.
+
+### Checks that do not run on pull requests
+
+- **`pip-audit` on a weekly schedule** (`.github/workflows/scheduled-audit.yml`).
+  Because `uv.lock` pins every version, a pull request is no longer the
+  moment dependencies get re-resolved — without a scheduled run, a CVE
+  disclosed on Monday stays invisible until someone happens to open a
+  branch. A failing scheduled run opens, or comments on, a labelled issue:
+  a red tick on a Sunday that emails one person is not a control.
+- The secret scan is deliberately **not** on this list. It runs per pull
+  request, because its job is to stop a credential reaching `main`, not to
+  find one afterwards.
 
 ### Branch protection on `main`
 
