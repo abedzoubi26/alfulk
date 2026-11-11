@@ -132,6 +132,13 @@ jobs:
       RECOVERY_CODE_HMAC_KEY: ci-only-placeholder-recovery-key
       DATABASE_URL: postgres://alfulk:alfulk@localhost:5432/alfulk
       ALLOWED_HOSTS: example.invalid
+      # This job models *production*, where HSTS is fully enabled. The settings
+      # default both to False so that preview and staging -- which share the
+      # same settings module -- cannot assert `preload` for the registrable
+      # domain. Set them here rather than silencing W005 and W021.
+      SECURE_HSTS_SECONDS: "31536000"
+      SECURE_HSTS_INCLUDE_SUBDOMAINS: "true"
+      SECURE_HSTS_PRELOAD: "true"
 
     steps:
       - uses: actions/checkout@v4
