@@ -1,0 +1,21 @@
+# PostgreSQL for local development only. The application runs on the host.
+# Deployed environments are described in ADR-0003 and do not use this file.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alfulk
+      POSTGRES_PASSWORD: alfulk
+      POSTGRES_DB: alfulk
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alfulk -d alfulk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

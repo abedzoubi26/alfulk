@@ -1,0 +1,77 @@
+:root {
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --bg: #ffffff;
+  --accent: #2f5fd0;
+  --border: #e3e3e3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #ededed;
+    --muted: #a0a0a0;
+    --bg: #161616;
+    --accent: #7fa5f5;
+    --border: #2e2e2e;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1.5rem;
+}
+
+.brand {
+  color: var(--fg);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.site-main {
+  margin: 0 auto;
+  max-width: 44rem;
+  padding: 2.5rem 1.5rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin-top: 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.messages {
+  list-style: none;
+  margin: 1rem auto;
+  max-width: 44rem;
+  padding: 0 1.5rem;
+}
+
+.message {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem 0.9rem;
+}
+
+.message--error {
+  border-color: #d04f4f;
+}
+
+.message--success {
+  border-color: #4fa06a;
+}
