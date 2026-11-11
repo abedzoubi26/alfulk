@@ -46,6 +46,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS: list[str] = []
 
 LOCAL_APPS = [
+    "alfulk.accounts",
     "alfulk.core",
 ]
 
@@ -90,6 +91,21 @@ TEMPLATES = [
         },
     },
 ]
+
+# --- Authentication ---------------------------------------------------------
+
+# Set before the first migration that touches `auth`. Changing it later means
+# migrating every table that points at the user.
+AUTH_USER_MODEL = "accounts.User"
+
+# auth.E003 insists the USERNAME_FIELD carries a plain unique index. Ours is
+# unique on LOWER(email), which is strictly stronger: it rejects every row a
+# case-sensitive index would, plus the case variants. Django's check cannot
+# read an expression constraint, so silence it rather than satisfy it with a
+# second, redundant index -- that index would also tell the next reader that
+# letter case is part of identity, which is the thing we are ruling out. The
+# constraint is covered by alfulk/accounts/tests/test_email_uniqueness.py.
+SILENCED_SYSTEM_CHECKS = ["auth.E003"]
 
 # --- Passwords --------------------------------------------------------------
 
