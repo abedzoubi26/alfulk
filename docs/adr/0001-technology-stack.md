@@ -4,6 +4,9 @@
 - **Date:** 2026-11-11
 - **Deciders:** CTO
 - **Supersedes:** —
+- **Superseded in part by:**
+  [ADR-0005](0005-credential-storage-and-client-ip.md) — TOTP secrets are
+  encrypted with AES-256-GCM, not Fernet
 
 ## Context
 
@@ -71,9 +74,12 @@ and the one substitution noted under "Decision".
   two-factor package: the flows we need are narrow, and the stored secret is
   the most sensitive row in the database, so we want the storage and
   verification code to be ours and reviewed.
-- **TOTP secrets encrypted at rest** with Fernet (AES-128-CBC plus an
-  HMAC-SHA256 tag, from `cryptography`), using `MultiFernet` over an ordered
-  per-environment key list so rotation re-encrypts rather than invalidates.
+- **TOTP secrets encrypted at rest** with AES-256-GCM, bound to the user row
+  by its AAD, over an ordered per-environment key list so rotation re-encrypts
+  rather than invalidates. The format, the key list and the rejected
+  alternatives are [ADR-0005](0005-credential-storage-and-client-ip.md), which
+  supersedes this paragraph's earlier Fernet choice; Fernet has no AAD, so it
+  could not bind a ciphertext to the row it came from.
   A TOTP secret is unlike a password hash: verification needs the original
   value back, so hashing is not available and the plaintext would otherwise
   sit in the database. **Be honest about what this buys:** it defends against
@@ -162,7 +168,7 @@ for "Django as an OIDC provider" is real, and the alternatives' is not.
 - `RECOVERY_CODE_HMAC_KEY` and `TOTP_SECRET_ENCRYPTION_KEYS` are new
   operational secrets with their own rotation consequences. Both must exist in
   every environment before M1 ships. Rotating the HMAC key invalidates
-  outstanding recovery codes; rotating the Fernet key list does not invalidate
+  outstanding recovery codes; rotating the TOTP key list does not invalidate
   anything, but the old key must stay in the list until a re-encryption pass
   has run.
 - Losing `TOTP_SECRET_ENCRYPTION_KEYS` locks every user out of their second

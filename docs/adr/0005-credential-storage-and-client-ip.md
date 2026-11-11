@@ -3,7 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-11-11
 - **Deciders:** CTO
-- **Supersedes:** —
+- **Supersedes:** [ADR-0001](0001-technology-stack.md) in part — its TOTP
+  encryption choice (Fernet / `MultiFernet`). Everything else in ADR-0001
+  stands.
 
 ## Context
 
