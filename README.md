@@ -28,6 +28,8 @@ Argon2id password hashing, TOTP two-factor. See
 
 - [Architecture decisions](docs/adr/) — the stack, hosting, environments and CI/CD
 - [Product plan and increment briefs](docs/product/) — owned by the Product Manager
+- [Templates, forms and the accessibility baseline](docs/frontend/templates.md) — the
+  shared layer every screen is built on
 
 ## Local development
 
@@ -43,8 +45,9 @@ uv run python manage.py migrate
 uv run python manage.py runserver
 ```
 
-The app is then at http://localhost:8000 and its health endpoint at
-http://localhost:8000/healthz.
+The app is then at http://localhost:8000, its health endpoint at
+http://localhost:8000/healthz, and the template reference page — the shared
+form partials in every state — at http://localhost:8000/_ui/forms.
 
 `--locked` is the point: it installs what `uv.lock` records and fails rather
 than re-resolving, so your machine, CI and the deployed image run the same

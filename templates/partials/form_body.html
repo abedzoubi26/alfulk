@@ -1,0 +1,13 @@
+{% comment %}
+The inside of a form: error summary, hidden fields, then the visible fields.
+
+Expects `form`. Optional `form_id` is passed through to the error summary.
+
+Use this when the form needs markup partials/form.html cannot express -- more
+than one submit button, fieldsets grouping several fields, or content between
+fields. Otherwise use partials/form.html, which wraps this in a correctly
+configured <form> element.
+{% endcomment %}
+{% include "partials/form_errors.html" %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in form.visible_fields %}{% include "partials/field.html" %}{% endfor %}

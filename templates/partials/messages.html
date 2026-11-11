@@ -1,0 +1,17 @@
+{% comment %}
+Flash messages from django.contrib.messages.
+
+Rendered inside the main landmark by base.html. A polite live region: these are
+confirmations of something the user just did, so they should not interrupt. The
+assertive case -- "your submission failed" -- is the form error summary in
+partials/form_errors.html, not this.
+{% endcomment %}
+{% if messages %}
+  <div class="messages" role="status" aria-live="polite">
+    <ul class="messages__list">
+      {% for message in messages %}
+        <li class="message message--{{ message.level_tag }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
