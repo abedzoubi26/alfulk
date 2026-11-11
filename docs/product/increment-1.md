@@ -1,6 +1,8 @@
 # Increment 1 brief: Identity & Sign-in (M1, part 1)
 
-Status: draft for confirmation (owner: Product Manager). Last updated 2026-11-11.
+Status: confirmed by the product owner on 2026-11-11 (owner: Product Manager).
+The acceptance criteria below are final for increment 1; engineering tasks are
+created from them under ALF-2. Last updated 2026-11-11.
 
 Increment 1 delivers a single user's account life cycle with no organization,
 no admin, and no outbound email. Everything below must be checkable on staging
@@ -448,6 +450,10 @@ data and without building the software. Engineering provides:
   set on staging to the fast values used in the acceptance criteria above:
   1-minute idle timeout, 5-minute absolute lifetime, 1-minute second-step
   window, 3 failures and 2-minute lockout. Production uses the defaults.
+  Staging exposes two timing profiles: `fast` (the values above) for the timing
+  criteria AC-SI-4, AC-SI-5, AC-2S-6, and AC-LO-1 to AC-LO-6, and `default`
+  (the production values) for everything else, so QA is not interrupted by
+  session expiry while checking criteria that have nothing to do with timing.
 - **A way to read audit events** on staging for AC-AL-1, AC-AL-3, and AC-AL-4:
   either a read-only management command that prints events for an email, or
   read-only database access for QA.
@@ -463,7 +469,12 @@ release gate.
 ## Questions for the CTO
 
 Technical questions that do not change the user-visible behavior above. The
-CTO decides; the brief is updated only if a decision changes behavior.
+CTO decides; the brief is updated only if a decision changes behavior. All
+five were answered on ALF-4 on 2026-11-11 (lockout counters in a dedicated
+PostgreSQL table; TOTP secrets encrypted application-side under a rotatable
+per-environment key list, ADR-0005; client IP resolved against a trusted-proxy
+list, ADR-0005; pending second factor as an anonymous server-side session; fast
+staging timings as environment variables). None changed the behavior above.
 
 1. Where do the lockout counters live (database table or cache) so they survive
    restarts and work with multiple application processes?
@@ -476,12 +487,14 @@ CTO decides; the brief is updated only if a decision changes behavior.
 5. Can staging run with the fast timing values above without affecting preview
    environments?
 
-## Open product decisions for the user
+## Product decisions (confirmed 2026-11-11)
+
+The product owner confirmed the brief as written, so each default below stands.
 
 1. Is revealing "an account with this email already exists" on sign-up
    acceptable for increment 1, given there is no email delivery yet? (This
-   brief says yes.)
-2. Idle timeout of 30 minutes and absolute lifetime of 12 hours: confirm or
-   choose other defaults.
-3. Lockout of 10 failures in 15 minutes with a 15-minute lock: confirm or
-   choose other defaults.
+   brief says yes.) Confirmed: yes.
+2. Idle timeout of 30 minutes and absolute lifetime of 12 hours. Confirmed as
+   the defaults.
+3. Lockout of 10 failures in 15 minutes with a 15-minute lock. Confirmed as
+   the defaults.
