@@ -15,23 +15,50 @@ permissions:
   contents: read
 
 env:
-  PYTHON_VERSION: "3.12"
+  # Pinned so the resolver itself is part of the reproducible set. The
+  # container image (F2) must use this same version.
+  UV_VERSION: "0.13.7"
 
 jobs:
+  lock:
+    name: Lockfile up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: uv lock --check
+        # Fails when pyproject.toml has moved on without `uv lock` being
+        # re-run. Every other job also passes `--locked`; this one exists so
+        # the reason shows up as a named red check instead of as an install
+        # failure.
+        run: uv lock --check
+
   lint:
     name: Lint and format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
+      - name: Install the interpreter pinned by .python-version
+        run: uv python install
+
+      - name: Install locked dependencies
+        # `--locked` refuses to resolve: it installs exactly what uv.lock
+        # records, or it fails. Putting .venv/bin on PATH lets the rest of
+        # the job call tools by name.
+        run: |
+          uv sync --extra dev --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: ruff check
         run: ruff check --output-format=github .
@@ -67,14 +94,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
+      - name: Install the interpreter pinned by .python-version
+        run: uv python install
+
+      - name: Install locked dependencies
+        run: |
+          uv sync --extra dev --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Check for missing migrations
         # Catches a model changed without a migration, which is the most
@@ -105,14 +136,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
+      - name: Install the interpreter pinned by .python-version
+        run: uv python install
+
+      - name: Install locked runtime dependencies
+        # No dev extra: this job checks the configuration we ship, so it
+        # runs against the dependency set we ship.
+        run: |
+          uv sync --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: django check --deploy
         # The only check that tests the configuration we actually ship rather
@@ -125,14 +162,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
 
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
+      - name: Install the interpreter pinned by .python-version
+        run: uv python install
+
+      - name: Install locked dependencies
+        run: |
+          uv sync --extra dev --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: pip-audit
-        run: pip-audit --progress-spinner=off
+        # Audits the installed environment, which `--locked` guarantees is
+        # the locked set — so the advisory report describes the versions we
+        # actually ship, not whatever the manifest ranges allow today.
+        # `--skip-editable` skips alfulk itself, which is not on PyPI.
+        run: pip-audit --skip-editable --progress-spinner=off
