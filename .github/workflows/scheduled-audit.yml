@@ -1,0 +1,126 @@
+# A dependency audit that does not wait for someone to open a pull request.
+#
+# `uv.lock` pins every version, which is what makes this necessary rather
+# than redundant: before the lockfile, a quiet week still meant dependencies
+# were re-resolved on the next build. Now a CVE disclosed on Monday is
+# invisible until somebody happens to open a pull request.
+#
+# This is deliberately a separate workflow from ci.yml rather than a
+# `schedule:` trigger added to it. The reporting job needs `issues: write`,
+# and ADR-0004 is explicit that pull-request-triggered workflows get no
+# elevated permissions. Keeping the privileged job in a workflow that
+# `pull_request` never fires means that token cannot exist in the same run
+# as untrusted branch code.
+name: Scheduled audit
+
+on:
+  schedule:
+    # 06:00 UTC every Monday. Weekly rather than daily: the lockfile only
+    # changes when someone changes it, so a daily run mostly re-reports the
+    # same finding, and an alert that repeats is an alert people filter.
+    - cron: "0 6 * * 1"
+  # So this can be run on demand, and so it can be proven to work without
+  # waiting a week for the cron.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.13.7"
+
+jobs:
+  audit:
+    name: Dependency audit (scheduled)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install the interpreter pinned by .python-version
+        run: uv python install
+
+      - name: Install locked dependencies
+        run: |
+          uv sync --extra dev --locked
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: pip-audit
+        # The same invocation as the `Dependency audit` job in ci.yml, against
+        # the same locked environment, so a pull request and the schedule
+        # cannot disagree about whether the dependencies are clean.
+        run: pip-audit --skip-editable --progress-spinner=off
+
+  report:
+    name: Report a failed audit
+    needs: audit
+    # Only when the audit actually failed. Without this the job would also
+    # fire on a cancelled run.
+    if: failure() && needs.audit.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # Scoped to this job alone: the job that installs and executes
+      # dependency code above runs with a read-only token.
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update a tracking issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = 'dependency-audit';
+            const title = 'Scheduled dependency audit is failing';
+
+            // This job is the only thing standing between a Monday-morning
+            // CVE and nobody noticing, so it does not get to fail on a
+            // missing label.
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label });
+            } catch (e) {
+              if (e.status !== 404) throw e;
+              await github.rest.issues.createLabel({
+                ...context.repo,
+                name: label,
+                color: 'b60205',
+                description: 'Raised by the scheduled pip-audit run',
+              });
+            }
+            const runUrl =
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
+              `/actions/runs/${context.runId}`;
+
+            // Reuse one open issue rather than filing a new one every week:
+            // a weekly duplicate is how an alert becomes noise people mute.
+            const existing = await github.rest.issues.listForRepo({
+              ...context.repo,
+              state: 'open',
+              labels: label,
+            });
+
+            const body =
+              `\`pip-audit\` failed on the scheduled run.\n\n` +
+              `- Run: ${runUrl}\n` +
+              `- Triggered by: \`${context.eventName}\`\n\n` +
+              `Read the run log for the advisories. Fix by bumping the ` +
+              `affected package in \`pyproject.toml\`, re-running \`uv lock\`, ` +
+              `and opening a pull request. Close this issue once the ` +
+              `schedule is green again.`;
+
+            if (existing.data.length > 0) {
+              const number = existing.data[0].number;
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: number, body,
+              });
+              core.notice(`Commented on existing issue #${number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo, title, body, labels: [label],
+              });
+              core.notice(`Opened issue #${created.data.number}`);
+            }
