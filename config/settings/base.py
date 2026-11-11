@@ -131,7 +131,10 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_NAME = "alfulk_sessionid"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 60 * 12)
+# With SESSION_SAVE_EVERY_REQUEST below, this is the *idle* timeout, not the
+# absolute lifetime: the brief asks for 30 minutes idle. The 12-hour absolute
+# lifetime is a separate mechanism and arrives with E5.
+SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 30)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True  # makes SESSION_COOKIE_AGE an idle timeout
 
