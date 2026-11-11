@@ -38,3 +38,12 @@ CSRF_COOKIE_SECURE = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+
+# --- Django admin -----------------------------------------------------------
+
+# No default, for the same reason as ALLOWED_HOSTS: every deployed environment
+# must state its own admin path, and an environment that forgets should fail at
+# startup rather than quietly serve `django.contrib.admin` from /admin/.
+# Set it to the empty string to not route the admin in this environment at all.
+# See ADR-0006.
+ADMIN_URL = normalise_admin_url(env("ADMIN_URL"))  # noqa: F405

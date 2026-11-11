@@ -45,6 +45,10 @@ python manage.py runserver
 The app is then at http://localhost:8000 and its health endpoint at
 http://localhost:8000/healthz.
 
+The Django admin is mounted wherever `ADMIN_URL` says — `admin/` by default
+locally, a path of its own in each deployed environment, and nowhere at all
+when the variable is empty. See [ADR-0006](docs/adr/0006-django-admin-exposure.md).
+
 ### Checks
 
 Run these before opening a pull request; CI runs the same set.
